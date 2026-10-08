@@ -2,45 +2,136 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Custom Match Game</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stylized Match Game</title>
   <style>
-    /* Clean, modern style matching Wordwall */
-    body { font-family: system-ui, sans-serif; background: #f9fafb; padding: 10px; display: flex; flex-direction: column; align-items: center; }
-    .game-container { display: flex; gap: 20px; margin-top: 15px; }
-    .column { display: flex; flex-direction: column; gap: 10px; }
-    .card { padding: 12px 20px; background: white; border: 2px solid #e5e7eb; border-radius: 8px; cursor: pointer; user-select: none; transition: 0.2s; font-weight: 500; text-align: center;}
-    .card.selected { border-color: #2563eb; background: #eff6ff; color: #2563eb; }
-    .card.matched { background: #dcfce7; border-color: #22c55e; color: #166534; cursor: default; }
-    #msg { margin-top: 15px; font-weight: bold; color: #22c55e; }
+    :root {
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --bg-selected: #eff6ff;
+      --success: #22c55e;
+      --success-bg: #dcfce7;
+      --border: #e5e7eb;
+      --text: #1f2937;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: transparent;
+      margin: 0;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      color: var(--text);
+    }
+
+    h3 {
+      margin-top: 0;
+      margin-bottom: 20px;
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+
+    .game-container {
+      display: flex;
+      gap: 32px;
+      width: 100%;
+      max-width: 600px;
+      justify-content: center;
+    }
+
+    .column {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      flex: 1;
+    }
+
+    .card {
+      padding: 16px;
+      background: white;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.2s ease;
+      font-weight: 500;
+      text-align: center;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    }
+
+    .card:hover:not(.matched) {
+      border-color: #9ca3af;
+      transform: translateY(-1px);
+    }
+
+    .card.selected {
+      border-color: var(--primary);
+      background: var(--bg-selected);
+      color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    }
+
+    .card.matched {
+      background: var(--success-bg);
+      border-color: var(--success);
+      color: #166534;
+      cursor: default;
+      transform: none;
+      animation: pop 0.3s ease-out;
+    }
+
+    #status-msg {
+      margin-top: 24px;
+      font-weight: 600;
+      font-size: 1.1rem;
+      text-align: center;
+      min-height: 24px;
+    }
+
+    .success-text { color: var(--success); }
+    .loading-text { color: #6b7280; }
+
+    @keyframes pop {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.04); }
+      100% { transform: scale(1); }
+    }
   </style>
 </head>
 <body>
 
-  <h3>Match the Pairs</h3>
+  <h3>Match the Matching Pairs</h3>
+  
   <div class="game-container">
     <div class="column" id="left-col"></div>
     <div class="column" id="right-col"></div>
   </div>
-  <div id="msg"></div>
+
+  <div id="status-msg"></div>
 
   <script>
-    // Define your matching data here
+    // 1. EDIT YOUR PAIRS HERE (Left must match Right)
     const pairs = [
       { left: "Apple", right: "Red Fruit" },
       { left: "Banana", right: "Yellow Fruit" },
-      { left: "Sky", right: "Blue Atmosphere" }
+      { left: "Sky", right: "Blue Atmosphere" },
+      { left: "Fire", right: "Hot Flame" }
     ];
+
+    // 2. CONFIGURATION VALUES (Fill these out)
+    // Replace this URL with your actual public Tally share URL
+    const TALLY_FORM_URL = "https://tally.so/r/LZQlZv"; 
 
     let selectedLeft = null;
     let selectedRight = null;
     let matchesCount = 0;
 
-    // Render game cards
     function initGame() {
       const leftCol = document.getElementById('left-col');
       const rightCol = document.getElementById('right-col');
       
-      // Shuffle columns independently
       const shuffledLeft = [...pairs].sort(() => Math.random() - 0.5);
       const shuffledRight = [...pairs].sort(() => Math.random() - 0.5);
 
@@ -64,7 +155,6 @@
     function selectCard(element, side, value) {
       if (element.classList.contains('matched')) return;
 
-      // Clear previous selection on same side
       const siblings = element.parentNode.querySelectorAll('.card');
       siblings.forEach(s => s.classList.remove('selected'));
       element.classList.add('selected');
@@ -72,7 +162,6 @@
       if (side === 'left') selectedLeft = { element, value };
       if (side === 'right') selectedRight = { element, value };
 
-      // Check for match
       if (selectedLeft && selectedRight) {
         const correctPair = pairs.find(p => p.left === selectedLeft.value && p.right === selectedRight.value);
         
@@ -82,33 +171,32 @@
           matchesCount++;
           
           if (matchesCount === pairs.length) {
-            document.getElementById('msg').innerText = "Game Completed!";
-            sendDataToTally("All pairs matched perfectly!");
+            handleGameCompletion();
           }
         } else {
-          // Reset styling if wrong match
           const l = selectedLeft.element;
           const r = selectedRight.element;
           setTimeout(() => {
             l.classList.remove('selected');
             r.classList.remove('selected');
-          }, 400);
+          }, 350);
         }
         selectedLeft = null;
         selectedRight = null;
       }
     }
 
-    // THIS IS THE SECRET SAUCE: Sends the data out of the iframe straight into Tally's hidden field
-    function sendDataToTally(resultData) {
-      window.parent.postMessage(
-        {
-          type: 'tally-value', 
-          name: 'game_data', // Must exactly match your Tally Hidden Field name
-          value: resultData
-        }, 
-        '*'
-      );
+    function handleGameCompletion() {
+      const status = document.getElementById('status-msg');
+      status.className = 'loading-text';
+      status.innerText = "Game Completed! Redirecting to save results...";
+
+      // Create your data string to pass into Tally
+      const gameScore = `Successfully matched all ${pairs.length} pairs.`;
+
+      // Redirect the parent frame, appending data to a hidden field variable named 'gameResult'
+      // Make sure you type /hidden in your Tally editor and name the field 'gameResult'
+      window.top.location.href = `${TALLY_FORM_URL}?gameResult=${encodeURIComponent(gameScore)}`;
     }
 
     initGame();
