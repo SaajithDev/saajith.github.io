@@ -4,6 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Stylized Match Game</title>
+
+  <!-- Figtree font from Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+
   <style>
     :root {
       --primary: #2563eb;
@@ -15,14 +21,26 @@
       --text: #1f2937;
     }
 
+    /* Transparent so the parent page shows through when embedded in an iframe.
+       'color-scheme: light dark' stops browsers from painting an opaque
+       backdrop when the parent page uses dark mode. */
+    :root { color-scheme: light dark; }
+    html, body { background: transparent !important; }
+
+    @media (prefers-color-scheme: dark) {
+      :root { --text: #f3f4f6; }
+      .card { color: #1f2937; } /* keep text readable on the white cards */
+    }
+
     body {
-      font-family: system-ui, -apple-system, sans-serif;
+      font-family: 'Figtree', system-ui, -apple-system, sans-serif;
       background: transparent;
       margin: 0;
       padding: 16px;
       display: flex;
       flex-direction: column;
-      align-items: center;
+      align-items: flex-start; /* top-left alignment */
+      justify-content: flex-start;
       color: var(--text);
     }
 
@@ -31,6 +49,7 @@
       margin-bottom: 20px;
       font-size: 1.25rem;
       font-weight: 600;
+      text-align: left;
     }
 
     .game-container {
@@ -38,7 +57,7 @@
       gap: 32px;
       width: 100%;
       max-width: 600px;
-      justify-content: center;
+      justify-content: flex-start; /* top-left alignment */
     }
 
     .column {
@@ -56,6 +75,7 @@
       cursor: pointer;
       user-select: none;
       transition: all 0.2s ease;
+      font-family: inherit;
       font-weight: 500;
       text-align: center;
       box-shadow: 0 2px 4px rgba(0,0,0,0.02);
@@ -86,7 +106,7 @@
       margin-top: 24px;
       font-weight: 600;
       font-size: 1.1rem;
-      text-align: center;
+      text-align: left;
       min-height: 24px;
     }
 
@@ -94,16 +114,13 @@
     .loading-text { color: #6b7280; }
 
     @keyframes pop {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.04); }
+      0%   { transform: scale(1); }
+      50%  { transform: scale(1.04); }
       100% { transform: scale(1); }
     }
   </style>
 </head>
 <body>
-
-  <h3>Match the Matching Pairs</h3>
-  
   <div class="game-container">
     <div class="column" id="left-col"></div>
     <div class="column" id="right-col"></div>
@@ -112,17 +129,55 @@
   <div id="status-msg"></div>
 
   <script>
-    // 1. EDIT YOUR PAIRS HERE (Left must match Right)
-    const pairs = [
-      { left: "Apple", right: "Red Fruit" },
+    /*
+      CUSTOM PAIRS VIA QUERY PARAMETERS
+      ---------------------------------
+      ?pairs=Left1:Right1,Left2:Right2,Left3:Right3
+
+      Example:
+      game.html?pairs=Dog:Barks,Cat:Meows,Cow:Moos
+
+      - Separate pairs with a comma (,)
+      - Separate left/right with a colon (:)
+      - Spaces are fine (browsers encode them as %20 or +)
+      - To include a literal comma or colon in your text, URL-encode it
+        (%2C for a comma, %3A for a colon)
+      - If no valid pairs are provided, the default pairs below are used.
+    */
+
+    // Default pairs (used when no ?pairs= parameter is supplied)
+    const defaultPairs = [
+      { left: "Apple",  right: "Red Fruit" },
       { left: "Banana", right: "Yellow Fruit" },
-      { left: "Sky", right: "Blue Atmosphere" },
-      { left: "Fire", right: "Hot Flame" }
+      { left: "Sky",    right: "Blue Atmosphere" },
+      { left: "Fire",   right: "Hot Flame" }
     ];
 
-    // 2. CONFIGURATION VALUES (Fill these out)
     // Replace this URL with your actual public Tally share URL
-    const TALLY_FORM_URL = "https://tally.so/r/LZQlZv"; 
+    const TALLY_FORM_URL = "https://tally.so/r/LZQlZv";
+
+    function parsePairsFromQuery() {
+      const params = new URLSearchParams(window.location.search);
+
+      const raw = params.get('pairs');
+      if (!raw) return defaultPairs;
+
+      const parsed = raw
+        .split(',')
+        .map(chunk => {
+          const idx = chunk.indexOf(':'); // split on the first colon only
+          if (idx === -1) return null;
+          const left = chunk.slice(0, idx).trim();
+          const right = chunk.slice(idx + 1).trim();
+          return left && right ? { left, right } : null;
+        })
+        .filter(Boolean);
+
+      // Need at least 2 pairs for the game to make sense
+      return parsed.length >= 2 ? parsed : defaultPairs;
+    }
+
+    const pairs = parsePairsFromQuery();
 
     let selectedLeft = null;
     let selectedRight = null;
@@ -131,14 +186,14 @@
     function initGame() {
       const leftCol = document.getElementById('left-col');
       const rightCol = document.getElementById('right-col');
-      
+
       const shuffledLeft = [...pairs].sort(() => Math.random() - 0.5);
       const shuffledRight = [...pairs].sort(() => Math.random() - 0.5);
 
       shuffledLeft.forEach(p => {
         const div = document.createElement('div');
         div.className = 'card';
-        div.innerText = p.left;
+        div.textContent = p.left;
         div.onclick = () => selectCard(div, 'left', p.left);
         leftCol.appendChild(div);
       });
@@ -146,7 +201,7 @@
       shuffledRight.forEach(p => {
         const div = document.createElement('div');
         div.className = 'card';
-        div.innerText = p.right;
+        div.textContent = p.right;
         div.onclick = () => selectCard(div, 'right', p.right);
         rightCol.appendChild(div);
       });
@@ -159,17 +214,19 @@
       siblings.forEach(s => s.classList.remove('selected'));
       element.classList.add('selected');
 
-      if (side === 'left') selectedLeft = { element, value };
+      if (side === 'left')  selectedLeft  = { element, value };
       if (side === 'right') selectedRight = { element, value };
 
       if (selectedLeft && selectedRight) {
-        const correctPair = pairs.find(p => p.left === selectedLeft.value && p.right === selectedRight.value);
-        
+        const correctPair = pairs.find(
+          p => p.left === selectedLeft.value && p.right === selectedRight.value
+        );
+
         if (correctPair) {
           selectedLeft.element.className = 'card matched';
           selectedRight.element.className = 'card matched';
           matchesCount++;
-          
+
           if (matchesCount === pairs.length) {
             handleGameCompletion();
           }
@@ -181,6 +238,7 @@
             r.classList.remove('selected');
           }, 350);
         }
+
         selectedLeft = null;
         selectedRight = null;
       }
@@ -191,12 +249,15 @@
       status.className = 'loading-text';
       status.innerText = "Game Completed! Redirecting to save results...";
 
-      // Create your data string to pass into Tally
+      // Data string to pass to Tally
       const gameScore = `Successfully matched all ${pairs.length} pairs.`;
 
-      // Redirect the parent frame, appending data to a hidden field variable named 'gameResult'
+      // Redirect the parent frame, appending data to a hidden field named 'gameResult'
       // Make sure you type /hidden in your Tally editor and name the field 'gameResult'
-      window.top.location.href = `${TALLY_FORM_URL}?gameResult=${encodeURIComponent(gameScore)}`;
+      // window.top.location.href = `${TALLY_FORM_URL}?gameResult=${encodeURIComponent(gameScore)}`;
+
+      const newUrl = `${TALLY_FORM_URL}?gameResult=${encodeURIComponent(gameScore)}`;
+      window.history.pushState({ path: newUrl }, '', newUrl);
     }
 
     initGame();
